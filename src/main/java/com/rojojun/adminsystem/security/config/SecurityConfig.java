@@ -2,7 +2,10 @@ package com.rojojun.adminsystem.security.config;
 
 import com.rojojun.adminsystem.security.metadatasource.UrlFilterInvocationSecurityMetadataSource;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.access.AccessDecisionManager;
+import org.springframework.security.access.AccessDecisionVoter;
 import org.springframework.security.access.vote.AffirmativeBased;
+import org.springframework.security.access.vote.RoleVoter;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -12,11 +15,15 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.FilterInvocationSecurityMetadataSource;
 import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class SecurityConfig {
 
@@ -50,7 +57,8 @@ public class SecurityConfig {
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
                         .accessDeniedPage("/denied")
-                );
+                )
+                .addFilterBefore((request, response, chain) -> customFilterSecurityInterceptor(), FilterSecurityInterceptor.class);
         http.csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer.disable());
 
         customConfigurer(http);
@@ -97,16 +105,26 @@ public class SecurityConfig {
     }
 
     @Bean
+    public AuthorizationFilter customAuthorizationFilter() throws Exception {
+        AuthorizationFilter authorizationFilter = new AuthorizationFilter();
+    }
+    // deprecated 수정
+    @Bean
     public FilterSecurityInterceptor customFilterSecurityInterceptor() throws Exception {
         FilterSecurityInterceptor filterSecurityInterceptor = new FilterSecurityInterceptor();
         filterSecurityInterceptor.setSecurityMetadataSource(urlFilterInvocationSecurityMeta());
         filterSecurityInterceptor.setAccessDecisionManager(affirmativeBased());
         filterSecurityInterceptor.setAuthenticationManager(authenticationManager(null));
+        return filterSecurityInterceptor;
     }
 
-    @Bean
-    private AccessDeniedHandler affirmativeBased() {
+    private AccessDecisionManager affirmativeBased() {
         AffirmativeBased affirmativeBased = new AffirmativeBased(getAccessDecisionVoter());
+        return affirmativeBased;
+    }
+
+    private List<AccessDecisionVoter<?>> getAccessDecisionVoter() {
+        return Arrays.asList(new RoleVoter());
     }
 
     @Bean
